@@ -1,3 +1,4 @@
+﻿# Added import for os.path
 #!/usr/bin/env python3
 """
 FireRedVAD ONNX 流式推理完整脚本
@@ -498,15 +499,15 @@ def main():
     
     # 1. 配置
     config = StreamVadConfig(
-        onnx_path="/home/leospark/.openclaw/workspace/fireredvad_pretrained_models/FireRedVAD/Stream-VAD/model.onnx",
-        cmvn_path="/home/leospark/.openclaw/workspace/fireredvad_pretrained_models/FireRedVAD/Stream-VAD/cmvn.ark",
+        onnx_path=os.path.join(model_dir, 'Stream-VAD.onnx'),
+        cmvn_path=None  # CMVN Ѽɽģ,
         speech_threshold=0.5,
         smooth_window_size=5,
         use_gpu=False
     )
     
     # 2. 创建测试音频
-    test_wav = "/tmp/test_fireredvad_streaming.wav"
+    test_wav = os.path.join(os.path.dirname(__file__), '..', 'examples', 'test_audio.wav')
     create_test_audio(test_wav, duration=3.0)
     
     # 3. 创建 VAD
@@ -578,3 +579,4 @@ def main():
 if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)
+

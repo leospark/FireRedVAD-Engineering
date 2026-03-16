@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 FireRedVAD - 绘制 VAD 概率曲线图
 
@@ -197,11 +197,10 @@ def process_audio_and_plot(wav_path, output_dir="."):
 def main():
     # 测试音频
     test_files = [
-        ('官方中文', '/home/leospark/.openclaw/workspace/fireredvad_code/assets/hello_zh.wav'),
-        ('唐僧语音_片段', '/home/leospark/.openclaw/workspace/media/01_tangseng_deguzhongsheng.wav'),
+        ('官方中文', ('test_audio.wav', os.path.join(os.path.dirname(__file__), 'test_audio.wav'))),
     ]
     
-    output_base = '/home/leospark/.openclaw/workspace/fireredvad_output'
+    output_base = os.path.join(os.path.dirname(__file__), '..', 'output')
     
     results = []
     
@@ -245,3 +244,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+

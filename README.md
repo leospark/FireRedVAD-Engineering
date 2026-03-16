@@ -1,4 +1,4 @@
-# 🔥 FireRedVAD-Open
+﻿# 🔥 FireRedVAD-Open
 
 **轻量级流式语音活动检测（VAD）工具**
 
@@ -252,6 +252,49 @@ for audio_file in audio_files:
 
 ---
 
+
+## ⚙️ 配置说明
+
+### 模型路径配置
+
+默认情况下，模型路径使用相对路径：
+
+`python
+from inference.streaming import StreamVAD
+
+# 使用默认路径（模型在项目目录内）
+vad = StreamVAD()
+
+# 或自定义路径
+vad = StreamVAD(
+    model_path="/path/to/your/Stream-VAD.onnx",
+    cmvn_path="/path/to/your/cmvn.ark"  # 可选，None 使用默认值
+)
+`
+
+### 目录结构
+
+`
+your_project/
+├── your_code.py
+└── FireRedVAD-Open/
+    ├── models/
+    │   └── Stream-VAD.onnx
+    └── inference/
+        └── streaming.py
+`
+
+`python
+# 在你的项目中使用
+import sys
+sys.path.insert(0, 'FireRedVAD-Open')
+from inference.streaming import StreamVAD
+
+vad = StreamVAD(model_path='FireRedVAD-Open/models/Stream-VAD.onnx')
+`
+
+---
+
 ## 📝 常见问题
 
 ### Q: 如何处理非 16kHz 音频？
@@ -299,3 +342,4 @@ A: 可以！本项目采用 MIT 许可证，允许商业用途。
 > 你的支持是我持续更新的动力！
 
 **📄 许可：** MIT License - 允许自由使用、修改和分发
+
