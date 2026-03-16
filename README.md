@@ -1,41 +1,44 @@
-# FireRedVAD-Open
+# FireRedVAD-Engineering
 
-**Lightweight streaming Voice Activity Detection (VAD) tool**
+**High-Precision Streaming Voice Activity Detection (VAD)**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![ONNX](https://img.shields.io/badge/ONNX-1.10+-green.svg)](https://onnx.ai/)
 
-**Language:** [中文](README.md) | [English](README_en.md)
-
 ---
 
-## Introduction
+## What is FireRedVAD?
 
-FireRedVAD-Open is a lightweight, high-performance streaming Voice Activity Detection (VAD) tool based on ONNX inference engine.
+FireRedVAD-Engineering is a production-ready, streaming Voice Activity Detection (VAD) system optimized for real-time applications. Built with ONNX runtime for maximum performance and minimal dependencies.
 
-**Key Features:**
-- Real-time streaming processing with low latency
-- High precision - ONNX vs PyTorch max difference < 1e-5
-- Lightweight - Only requires ONNX Runtime, no PyTorch needed
-- Easy integration - Clean API for quick project integration
-- Low resource usage - Suitable for edge devices and real-time applications
+### Key Features
+
+- ⚡ **Real-time Streaming** - Low-latency audio stream processing
+- 🎯 **High Precision** - ONNX vs PyTorch max difference < 1e-5
+- 📦 **Lightweight** - Only ONNX Runtime required (no PyTorch)
+- 🔧 **Easy Integration** - Clean API for quick project integration
+- 💻 **Cross-Platform** - Windows, Linux, macOS support
 
 ---
 
 ## Quick Start
 
-### 1. Install Dependencies
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/leospark/FireRedVAD-Engineering.git
+cd FireRedVAD-Engineering
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Basic Usage
+### Basic Usage
 
 ```python
 from inference.streaming import StreamVAD
-import numpy as np
 import soundfile as sf
 
 # Initialize VAD
@@ -45,344 +48,201 @@ vad = StreamVAD(
     threshold=0.5
 )
 
-# Load audio
+# Load and process audio
 audio, sr = sf.read("audio.wav", dtype='int16')
-
-# Process audio
 segments = vad.process_audio(audio)
 
-# Output speech segments
+# Output results
 for start, end, prob in segments:
     print(f"Speech: {start:.2f}s - {end:.2f}s (confidence: {prob:.2f})")
 ```
 
-### 3. Run Examples
+### Run Examples
 
 ```bash
-# Basic example: detect speech segments
+# Detect speech segments
 python examples/demo.py examples/test_audio.wav
 
-# Plot example: draw VAD probability curve
+# Plot VAD probability curve
 python examples/plot_vad_prob.py examples/test_audio.wav
 ```
-
-**Output:**
-- `plot_vad_prob.png` - VAD probability curve plot
-- `plot_vad_prob.npy` - Probability data file
 
 ---
 
 ## Project Structure
 
 ```
-FireRedVAD-Open/
-├── models/                     # Model files
+FireRedVAD-Engineering/
+├── models/                     # Pre-trained models
 │   ├── Stream-VAD.onnx        (95KB)    # Model structure
-│   └── Stream-VAD.onnx.data   (2.2MB)   # Model weights (external data)
-├── inference/                  # Inference code
-│   └── streaming.py           (19KB)    # Streaming inference main file
+│   └── Stream-VAD.onnx.data   (2.2MB)   # Model weights
+├── inference/                  # Core inference code
+│   └── streaming.py           (19KB)    # Streaming VAD engine
 ├── examples/                   # Usage examples
-│   ├── demo.py                (1KB)     # Quick demo
-│   ├── plot_vad_prob.py       (8KB)     # Probability curve plotting
-│   └── test_audio.wav         (73KB)    # Test audio
-├── requirements.txt            (182B)    # Python dependencies
-├── LICENSE                     (1KB)     # MIT License
-├── README.md                   (8KB)     # This file
-└── README_en.md                (6KB)     # English version
+│   ├── demo.py                # Basic detection demo
+│   ├── plot_vad_prob.py       # Visualization tool
+│   └── test_audio.wav         # Test audio file
+├── requirements.txt            # Python dependencies
+└── LICENSE                     # MIT License
 ```
 
 ---
 
 ## Technical Specifications
 
-### Audio Processing Parameters
-
 | Parameter | Value | Description |
 |-----------|-------|-------------|
-| **Sample Rate** | 16kHz | Recommended input sample rate |
-| **Frame Length** | 400 samples | 25ms |
-| **Frame Shift** | 160 samples | 10ms |
-| **Feature Dimension** | 80 dim | Log-Mel spectrogram + CMVN |
-| **Cache States** | 8 (1, 128, 19) | LSTM/GRU caches |
-
-### Model Information
-
-| Model | Size | Description |
-|-------|------|-------------|
-| `Stream-VAD.onnx` | 95KB + 2.2MB | Streaming VAD model (with cache optimization, external data) |
-
-### Performance Metrics
-
-| Metric | Value | Description |
-|--------|-------|-------------|
-| **ONNX vs PyTorch** | < 1e-5 | Maximum difference |
-| **RTF (Real-time Factor)** | < 0.1 | CPU inference |
-| **Memory Usage** | < 50MB | Inference process |
+| **Sample Rate** | 16 kHz | Recommended input |
+| **Frame Length** | 400 samples | 25 ms |
+| **Frame Shift** | 160 samples | 10 ms |
+| **Feature Dim** | 80 | Log-Mel + CMVN |
+| **Model Size** | 2.3 MB | ONNX format |
+| **Memory Usage** | < 50 MB | Runtime memory |
+| **RTF (CPU)** | < 0.1 | Real-time factor |
 
 ---
 
-## API Documentation
+## API Reference
 
 ### StreamVAD Class
 
 ```python
-from inference.streaming import StreamVAD
-
 vad = StreamVAD(
-    model_path="models/Stream-VAD.onnx",    # ONNX model path
-    sample_rate=16000,                       # Audio sample rate
-    threshold=0.5,                           # VAD detection threshold
-    smooth_window_size=5,                    # Smoothing window size
-    min_speech_frame=8,                      # Minimum speech frames (80ms)
-    min_silence_frame=20                     # Minimum silence frames (200ms)
+    model_path="models/Stream-VAD.onnx",   # Model path
+    sample_rate=16000,                      # Audio sample rate
+    threshold=0.5,                          # Detection threshold (0-1)
+    smooth_window_size=5,                   # Smoothing window
+    min_speech_frame=8,                     # Min speech frames (80ms)
+    min_silence_frame=20                    # Min silence frames (200ms)
 )
 ```
 
-#### Parameters
+### Methods
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `model_path` | str | `"models/Stream-VAD.onnx"` | ONNX model path |
-| `sample_rate` | int | `16000` | Audio sample rate |
-| `threshold` | float | `0.5` | VAD detection threshold (0-1) |
-| `smooth_window_size` | int | `5` | Probability smoothing window size |
-| `min_speech_frame` | int | `8` | Minimum speech frames (80ms) |
-| `min_silence_frame` | int | `20` | Minimum silence frames (200ms) |
+#### `process_audio(audio: np.ndarray) -> List[Tuple[float, float, float]]`
 
-#### Main Methods
+Process complete audio file.
 
-**`process_audio(audio: np.ndarray) -> List[Tuple[float, float, float]]`**
+**Input:** `audio` - numpy array (int16, mono)  
+**Output:** `[(start, end, probability), ...]` - List of speech segments
 
-Process complete audio file, return list of speech segments.
+#### `process_chunk(audio_chunk: np.ndarray) -> List[FrameResult]`
 
-- **Input**: `audio` - Audio data (numpy array, int16, mono)
-- **Output**: `[(start, end, probability), ...]`
-  - `start`: Segment start time (seconds)
-  - `end`: Segment end time (seconds)
-  - `probability`: Speech confidence (0-1)
+Stream process audio chunks for real-time applications.
 
-**`process_chunk(audio_chunk: np.ndarray) -> List[FrameResult]`**
-
-Stream process audio chunks, suitable for real-time applications.
-
-- **Input**: `audio_chunk` - Audio chunk (recommend 100-500ms)
-- **Output**: List of `FrameResult` objects
+**Input:** `audio_chunk` - Audio chunk (100-500ms recommended)  
+**Output:** List of FrameResult objects
 
 ---
 
-## Usage Scenarios
+## Use Cases
 
-### 1. Speech Recognition Preprocessing
+### 1. ASR Preprocessing
 
 ```python
-# Extract speech segments, only process speech parts for ASR
+# Extract speech segments for ASR
 segments = vad.process_audio(audio)
 for start, end, _ in segments:
-    start_sample = int(start * 16000)
-    end_sample = int(end * 16000)
-    text = asr_engine.recognize(audio[start_sample:end_sample])
+    speech = audio[int(start*16000):int(end*16000)]
+    text = asr.recognize(speech)
 ```
 
-### 2. Meeting Records
+### 2. Meeting Analysis
 
 ```python
-# Detect speaker activity time periods
-segments = vad.process_audio(meeting_recording)
+# Detect speaker activity
+segments = vad.process_audio(meeting_audio)
 for start, end, prob in segments:
     print(f"Speaking: {start:.1f}s - {end:.1f}s")
 ```
 
-### 3. Audio Quality Assessment
+### 3. Voice Activity Ratio
 
 ```python
-# Calculate Voice Activity Ratio
-total_duration = len(audio) / 16000
-voice_duration = sum(end - start for start, end, _ in segments)
-var = voice_duration / total_duration
-print(f"Voice Activity Ratio: {var:.2%}")
+# Calculate speech ratio
+total = len(audio) / 16000
+voice = sum(end - start for start, end, _ in segments)
+print(f"Voice Activity: {voice/total:.2%}")
 ```
 
-### 4. Real-time Speech Detection
+### 4. Real-time Detection
 
 ```python
 import sounddevice as sd
 
-def audio_callback(chunk, frames, time, status):
+def callback(chunk, frames, time, status):
     segments = vad.process_chunk(chunk.flatten())
     if segments:
         print("Speech detected!")
 
-stream = sd.InputStream(callback=audio_callback, channels=1, samplerate=16000)
-with stream:
-    stream.start()
-```
-
-### 5. Plot VAD Probability Curve
-
-```bash
-python examples/plot_vad_prob.py examples/test_audio.wav
-```
-
-**Use cases:**
-- Analyze VAD detection效果
-- Adjust threshold parameters
-- Debugging and verification
-
----
-
-## Configuration
-
-### Model Path Configuration
-
-By default, model paths use relative paths:
-
-```python
-# Use default path (model inside project directory)
-vad = StreamVAD()
-
-# Or custom paths
-vad = StreamVAD(
-    model_path="/path/to/your/Stream-VAD.onnx",
-    cmvn_path="/path/to/your/cmvn.ark"  # Optional, None uses default
-)
-```
-
-### Using in Other Projects
-
-```
-your_project/
-├── your_code.py
-└── FireRedVAD-Open/
-    ├── models/
-    │   └── Stream-VAD.onnx
-    └── inference/
-        └── streaming.py
-```
-
-```python
-# Use in your project
-import sys
-sys.path.insert(0, 'FireRedVAD-Open')
-from inference.streaming import StreamVAD
-
-vad = StreamVAD(model_path='FireRedVAD-Open/models/Stream-VAD.onnx')
+stream = sd.InputStream(callback=callback, channels=1, samplerate=16000)
 ```
 
 ---
 
-## Performance Validation
+## Performance
 
-### ONNX vs PyTorch Consistency
+### Accuracy Validation
 
-After rigorous validation, maximum difference between ONNX model and original PyTorch model:
-
-```
-Maximum difference: 0.0000002514 (< 1e-5)
-```
+| Metric | Value |
+|--------|-------|
+| **ONNX vs PyTorch** | < 1e-5 max diff |
+| **Precision** | High consistency |
+| **Recall** | Optimized for speech |
 
 ### Inference Speed
 
-| Device | RTF | Description |
-|--------|-----|-------------|
-| CPU (Intel i7) | 0.05-0.08 | Real-time inference achievable |
-| GPU (NVIDIA) | 0.02-0.03 | Faster inference speed |
-
----
-
-## Advanced Configuration
-
-### Adjust Detection Threshold
-
-```python
-# Stricter (reduce false positives)
-vad = StreamVAD(threshold=0.7)
-
-# More sensitive (reduce false negatives)
-vad = StreamVAD(threshold=0.3)
-```
-
-### Batch Processing
-
-```python
-# Process multiple audio files
-audio_files = ["file1.wav", "file2.wav", "file3.wav"]
-for audio_file in audio_files:
-    audio, _ = sf.read(audio_file, dtype='int16')
-    segments = vad.process_audio(audio)
-    # Process results...
-```
+| Device | RTF | Notes |
+|--------|-----|-------|
+| **CPU (Intel i7)** | 0.05-0.08 | Real-time ready |
+| **GPU (NVIDIA)** | 0.02-0.03 | Faster inference |
 
 ---
 
 ## FAQ
 
-### Q: How to process non-16kHz audio?
+**Q: How to process non-16kHz audio?**
 
 ```python
 from scipy.signal import resample
-
-# Resample to 16kHz
-num_samples = int(len(audio) * 16000 / original_sample_rate)
-audio_16k = resample(audio, num_samples)
+audio_16k = resample(audio, int(len(audio) * 16000 / original_sr))
 ```
 
-### Q: How to process stereo audio?
+**Q: How to handle stereo audio?**
 
 ```python
-# Convert to mono
 if audio.ndim == 2:
-    audio = audio.mean(axis=1)  # Stereo to mono
+    audio = audio.mean(axis=1)  # Convert to mono
 ```
 
-### Q: Can I use this for commercial projects?
+**Q: Can I use this commercially?**
 
-A: Yes! This project uses MIT License, which allows commercial use.
+Yes! MIT License allows commercial use.
 
-### Q: How to adjust detection sensitivity?
+**Q: How to adjust sensitivity?**
 
 ```python
-# Adjust threshold
 vad = StreamVAD(threshold=0.3)  # More sensitive
-vad = StreamVAD(threshold=0.7)  # Stricter
-
-# Adjust smoothing window
-vad = StreamVAD(smooth_window_size=10)  # Smoother
-vad = StreamVAD(smooth_window_size=3)   # More responsive
-
-# Adjust minimum speech/silence length
-vad = StreamVAD(min_speech_frame=5)      # Shorter speech segments
-vad = StreamVAD(min_silence_frame=30)    # Longer silence judgment
+vad = StreamVAD(threshold=0.7)  # Stricter detection
 ```
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE) - allows free use, modification and distribution.
+MIT License - Free for personal and commercial use. See [LICENSE](LICENSE) for details.
 
 ---
 
 ## Acknowledgments
 
-- Engineered and optimized based on FireRedVAD model
-- Thanks to the open source community for contributions
+- Based on FireRedVAD model with engineering optimizations
+- Thanks to the open source community
 
 ---
 
-## Roadmap
+## Support
 
-- [ ] Add batch processing optimization
-- [ ] Support more audio formats (MP3, FLAC, etc.)
-- [ ] Provide Docker image
-- [ ] Add visualization interface (Gradio)
-- [ ] Support multi-language speech detection
-- [ ] Add WebAssembly support (browser-side inference)
+For issues and feature requests, please use [GitHub Issues](https://github.com/leospark/FireRedVAD-Engineering/issues).
 
----
-
-**Thank you for using FireRedVAD-Open!**
-
-> **If you like this project, please give it a Star!**  
-> Your support is the motivation for continuous updates!
-
-**License:** MIT License - allows free use, modification and distribution
+**Enjoy FireRedVAD!** ⭐
