@@ -1,0 +1,14 @@
+# FireRedVAD-Open 依赖
+# 安装：pip install -r requirements.txt
+
+# 核心依赖
+numpy>=1.20.0
+onnxruntime>=1.10.0
+scipy>=1.7.0
+
+# 音频处理（可选）
+librosa>=0.9.0
+soundfile>=0.10.0
+
+# 测试（可选）
+pytest>=6.0.0
