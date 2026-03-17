@@ -11,7 +11,6 @@ FireRedVAD ONNX 流式推理完整脚本
 - ✅ VAD 后处理 (平滑、边界检测)
 - ✅ 实时性能监控
 
-作者：OpenClaw Assistant
 日期：2026-03-04
 """
 
