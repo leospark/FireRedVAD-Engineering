@@ -5,13 +5,13 @@ FireRedVAD ONNX 流式推理完整脚本
 支持实时音频流 VAD 检测
 
 功能：
-- ✅ 音频特征提取 (CMVN, Fbank)
+- ✅ 音频特征提取 (Kaldi Fbank + CMVN)
 - ✅ ONNX 模型推理
 - ✅ 流式缓存管理
 - ✅ VAD 后处理 (平滑、边界检测)
 - ✅ 实时性能监控
 
-日期：2026-03-04
+日期：2026-03-18
 """
 
 import os
@@ -19,6 +19,11 @@ import sys
 import time
 import wave
 import numpy as np
+
+# 添加项目内 fireredvad 包路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from fireredvad.core.audio_feat import AudioFeat
+
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
 
@@ -27,14 +32,18 @@ from typing import List, Tuple, Optional
 @dataclass
 class StreamVadConfig:
     """流式 VAD 配置"""
-    # 模型路径（相对路径，支持自定义）
-    model_path: str = "models/Stream-VAD.onnx"
-    cmvn_path: Optional[str] = None  # 可选，模型已包含缓存
+    # 模型路径
+    onnx_path: str = "models/model_with_caches.onnx"
+    
+    # CMVN 文件路径（必需！）
+    cmvn_path: str = "models/cmvn.ark"
     
     # 音频参数
     sample_rate: int = 16000
-    frame_length_ms: int = 25  # 帧长 25ms
-    frame_shift_ms: int = 10   # 帧移 10ms
+    frame_shift_ms: int = 10   # 帧移 10ms（固定）
+    frame_length_ms: int = 25  # 帧长 25ms（固定） 
+    frame_length_samples: int = 400  # 帧长（25ms at 16kHz）
+    frame_shift_samples: int = 160   # 帧移（10ms at 16kHz）
     
     # VAD 参数
     speech_threshold: float = 0.5      # 语音阈值
@@ -45,18 +54,6 @@ class StreamVadConfig:
     
     # 性能参数
     use_gpu: bool = False
-    
-    @property
-    def frame_length_samples(self) -> int:
-        return int(self.sample_rate * self.frame_length_ms / 1000)
-    
-    @property
-    def frame_shift_samples(self) -> int:
-        return int(self.sample_rate * self.frame_shift_ms / 1000)
-    
-    @property
-    def feat_dim(self) -> int:
-        return 80  # Fbank 特征维度
 
 
 @dataclass
@@ -70,110 +67,6 @@ class FrameResult:
     is_speech_end: bool       # 语音结束点
     timestamp_ms: float       # 时间戳 (ms)
 
-
-# ==================== 音频特征提取 ====================
-
-class AudioFeatExtractor:
-    """音频特征提取器 (简化版 Fbank + CMVN)"""
-    
-    def __init__(self, config: StreamVadConfig):
-        self.config = config
-        self.sample_rate = config.sample_rate
-        self.frame_length = config.frame_length_samples
-        self.frame_shift = config.frame_shift_samples
-        self.feat_dim = config.feat_dim
-        
-        # 加载 CMVN 参数 (简化处理，使用全局均值方差)
-        self.cmvn_mean = np.zeros(self.feat_dim, dtype=np.float32)
-        self.cmvn_var = np.ones(self.feat_dim, dtype=np.float32)
-        
-        if os.path.exists(config.cmvn_path):
-            self._load_cmvn(config.cmvn_path)
-        
-        # 缓存音频用于端点检测
-        self.audio_buffer = np.array([], dtype=np.int16)
-        
-        # 预计算窗函数
-        self.window = np.hamming(self.frame_length).astype(np.float32)
-    
-    def _load_cmvn(self, cmvn_path: str):
-        """加载 CMVN 参数 (Kaldi 格式)"""
-        try:
-            # 简化处理：Kaldi cmvn.ark 格式较复杂，这里使用默认值
-            print(f"   使用默认 CMVN 参数")
-        except Exception as e:
-            print(f"⚠️ CMVN 加载失败：{e}")
-    
-    def extract_frame(self, audio_frame: np.ndarray) -> np.ndarray:
-        """
-        提取单帧音频特征
-        
-        Args:
-            audio_frame: 音频帧 [frame_length_samples], int16
-        
-        Returns:
-            feat: 特征 [1, feat_dim], float32
-        """
-        # 1. 预加重
-        audio = audio_frame.astype(np.float32) / 32768.0
-        audio = np.append(audio[0], audio[1:] - 0.97 * audio[:-1])
-        
-        # 2. 加窗
-        audio = audio * self.window
-        
-        # 3. FFT
-        fft = np.fft.rfft(audio, n=512)
-        power = np.abs(fft) ** 2
-        
-        # 4. Mel 滤波器组 (简化版，使用 80 个线性间隔)
-        mel_filters = self._create_mel_filters()
-        mel_energy = np.dot(power, mel_filters.T)
-        mel_energy = np.maximum(mel_energy, 1e-10)
-        
-        # 5. 对数
-        log_mel = np.log(mel_energy)
-        
-        # 6. DCT (简化为直接取前 80 维)
-        feat = log_mel[:self.feat_dim]
-        
-        # 7. CMVN
-        feat = (feat - self.cmvn_mean) / np.sqrt(self.cmvn_var)
-        
-        # 返回 [1, 1, feat_dim] 形状 (batch=1, seq_len=1, feat_dim)
-        return feat.reshape(1, 1, -1).astype(np.float32)
-    
-    def _create_mel_filters(self) -> np.ndarray:
-        """创建 Mel 滤波器组 (简化版)"""
-        nfft = 512
-        nfilt = self.feat_dim
-        
-        # 频率范围 0-8000Hz
-        low_freq = 0
-        high_freq = self.sample_rate / 2
-        
-        # 线性间隔
-        freq_bins = np.linspace(low_freq, high_freq, nfilt + 1)
-        fft_bins = np.floor((nfft // 2 + 1) * freq_bins / high_freq).astype(int)
-        fft_bins = np.clip(fft_bins, 0, nfft // 2)
-        
-        filters = np.zeros((nfilt, nfft // 2 + 1))
-        for i in range(nfilt):
-            left = fft_bins[i]
-            center = fft_bins[i + 1] if i + 1 < len(fft_bins) else nfft // 2
-            right = fft_bins[i + 2] if i + 2 < len(fft_bins) else nfft // 2
-            
-            for j in range(left, min(center, nfft // 2 + 1)):
-                if center > left:
-                    filters[i, j] = (j - left) / (center - left)
-            for j in range(center, min(right, nfft // 2 + 1)):
-                if right > center:
-                    filters[i, j] = (right - j) / (right - center)
-        
-        return filters.astype(np.float32)
-    
-    def reset(self):
-        """重置状态"""
-        self.audio_buffer = np.array([], dtype=np.int16)
 
 
 # ==================== VAD 后处理 ====================
@@ -287,7 +180,9 @@ class FireRedStreamVadONNX:
         
         # 2. 特征提取器
         print("🎵 初始化特征提取器...")
-        self.feat_extractor = AudioFeatExtractor(config)
+        self.feat_extractor = AudioFeat(config.cmvn_path)
+        print(f"   ✅ 使用 Kaldi Fbank + CMVN")
+        print(f"   CMVN: {config.cmvn_path}")
         
         # 3. 后处理器
         print("🔧 初始化后处理器...")
@@ -309,10 +204,13 @@ class FireRedStreamVadONNX:
             FrameResult: VAD 结果
         """
         # 1. 提取特征
-        feat = self.feat_extractor.extract_frame(audio_frame)
+        feat, _ = self.feat_extractor.extract(audio_frame)
+        feat_np = feat.numpy() if hasattr(feat, 'numpy') else feat
+        # 形状 [1, 80] -> [1, 1, 80]
+        feat_np = feat_np.reshape(1, 1, -1).astype(np.float32)
         
         # 2. ONNX 推理
-        prob, self.model_caches = self._inference(feat)
+        prob, self.model_caches = self._inference(feat_np)
         
         # 3. 后处理
         result = self.postprocessor.process_frame(prob)
@@ -330,17 +228,29 @@ class FireRedStreamVadONNX:
             prob: 语音概率
             caches: 新的缓存状态
         """
-        # 准备输入 (第一次推理不传缓存)
+        # 准备输入
         input_feed = {'input': feat}
+        
+        # 添加缓存（第一次使用零初始化）
+        if self.model_caches is None:
+            # 初始化 8 个缓存，每个形状 [1, 128, 19]
+            batch_size = 1
+            for i in range(8):
+                input_feed[f'cache_{i}'] = np.zeros((batch_size, 128, 19), dtype=np.float32)
+        else:
+            # 使用上一次的缓存
+            for i in range(8):
+                input_feed[f'cache_{i}'] = self.model_caches[i]
         
         # 运行推理
         outputs = self.session.run(None, input_feed)
         
         # 解析输出
-        # 输出 0: probability [batch, seq_len, 1]
-        # 输出 1-8: 缓存状态
-        prob = float(outputs[0][0, 0, 0])
-        caches = outputs[1:]  # 8 个缓存张量
+        # 输出 0: logits [batch, seq_len, 1] (需要 sigmoid 转换)
+        # 输出 1-8: 新缓存状态
+        logits = float(outputs[0][0, 0, 0])
+        prob = float(1 / (1 + np.exp(-logits)))  # sigmoid 转换
+        caches = [outputs[i+1] for i in range(8)]  # 8 个缓存张量
         
         return prob, caches
     
@@ -368,6 +278,120 @@ class FireRedStreamVadONNX:
             results.append(result)
         
         return results
+    
+    def process_audio(self, audio: np.ndarray, sample_rate: int = 16000) -> List[Tuple[float, float, float]]:
+        """
+        处理音频数组（numpy array）
+        
+        Args:
+            audio: 音频数据 (int16 或 float32)
+            sample_rate: 采样率
+        
+        Returns:
+            [(start, end, probability), ...] - 语音段时间戳列表
+        """
+        # 重置状态
+        self.reset()
+        
+        # 批量提取特征并推理
+        return self._process_audio_original(audio, sample_rate)
+    
+    def _process_audio_original(self, audio: np.ndarray, sample_rate: int = 16000) -> List[Tuple[float, float, float]]:
+        """使用原始 AudioFeat 批量处理"""
+        import torch
+        
+        # 批量提取所有帧的特征
+        feats, dur = self.feat_extractor.extract(audio)
+        
+        # 转换为 numpy
+        feats_np = feats.numpy() if isinstance(feats, torch.Tensor) else feats
+        
+        # 逐帧 ONNX 推理（流式模拟）
+        probs = []
+        caches = [np.zeros((1, 128, 19), dtype=np.float32) for _ in range(8)]
+        
+        for i in range(feats_np.shape[0]):
+            feat = feats_np[i:i+1].reshape(1, 1, -1).astype(np.float32)
+            
+            input_feed = {'input': feat}
+            for j in range(8):
+                input_feed[f'cache_{j}'] = caches[j]
+            
+            outputs = self.session.run(None, input_feed)
+            prob = float(outputs[0][0, 0, 0])
+            probs.append(prob)
+            caches = [outputs[j+1] for j in range(8)]
+        
+        # 后处理
+        for i, prob in enumerate(probs):
+            result = self.postprocessor.process_frame(prob)
+        
+        # 提取语音段
+        timestamps = self._extract_timestamps_with_prob_all(probs)
+        return timestamps
+    
+    def _extract_timestamps_with_prob_all(self, probs: List[float]) -> List[Tuple[float, float, float]]:
+        """从概率列表提取语音段"""
+        segments = []
+        in_speech = False
+        speech_start = None
+        speech_start_prob = 0.0
+        silence_count = 0
+        speech_count = 0
+        
+        for i, prob in enumerate(probs):
+            is_speech = prob >= self.config.speech_threshold
+            
+            if is_speech and not in_speech:
+                speech_count += 1
+                if speech_count >= self.config.pad_start_frame:
+                    in_speech = True
+                    speech_start = i - self.config.pad_start_frame + 1
+                    speech_start_prob = prob
+                    silence_count = 0
+            elif is_speech and in_speech:
+                silence_count = 0
+                speech_count += 1
+            elif not is_speech and in_speech:
+                silence_count += 1
+                if silence_count >= self.config.min_silence_frame:
+                    in_speech = False
+                    if speech_start is not None:
+                        end = i
+                        # 计算平均概率
+                        avg_prob = speech_start_prob
+                        segments.append((speech_start * 0.01, end * 0.01, avg_prob))
+                    speech_start = None
+                    speech_count = 0
+            else:
+                silence_count += 1
+                speech_count = 0
+        
+        if in_speech and speech_start is not None:
+            end = len(probs)
+            avg_prob = speech_start_prob
+            segments.append((speech_start * 0.01, end * 0.01, avg_prob))
+        
+        return segments
+    
+    def _extract_timestamps_with_prob(self, results: List[FrameResult]) -> List[Tuple[float, float, float]]:
+        """从帧结果提取语音段时间戳和概率"""
+        timestamps = []
+        start_time = None
+        start_prob = 0.0
+        
+        for result in results:
+            if result.is_speech_start:
+                start_time = result.timestamp_ms
+                start_prob = result.smoothed_prob
+            elif result.is_speech_end and start_time is not None:
+                end_time = result.timestamp_ms
+                # 计算平均概率
+                avg_prob = start_prob
+                timestamps.append((start_time / 1000.0, end_time / 1000.0, avg_prob))
+                start_time = None
+        
+        return timestamps
     
     def process_file(self, wav_path: str) -> Tuple[List[FrameResult], dict]:
         """
@@ -497,9 +521,10 @@ def main():
     print("="*70)
     
     # 1. 配置
+    model_dir = os.path.join(os.path.dirname(__file__), '..', 'models')
     config = StreamVadConfig(
-        onnx_path=os.path.join(model_dir, 'Stream-VAD.onnx'),
-        cmvn_path=None  # CMVN Ѽɽģ,
+        onnx_path=os.path.join(model_dir, 'model_with_caches.onnx'),
+        cmvn_path=os.path.join(model_dir, 'cmvn.ark'),
         speech_threshold=0.5,
         smooth_window_size=5,
         use_gpu=False
@@ -578,4 +603,7 @@ def main():
 if __name__ == "__main__":
     success = main()
     sys.exit(0 if success else 1)
+
+# 别名：StreamVAD（简化调用）
+StreamVAD = FireRedStreamVadONNX
 

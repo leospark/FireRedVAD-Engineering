@@ -1,14 +1,18 @@
-# FireRedVAD-Open 依赖
-# 安装：pip install -r requirements.txt
+# FireRedVAD-Engineering 依赖
 
 # 核心依赖
-numpy>=1.20.0
 onnxruntime>=1.10.0
-scipy>=1.7.0
-
-# 音频处理（可选）
-librosa>=0.9.0
+numpy>=1.20.0
 soundfile>=0.10.0
 
-# 测试（可选）
-pytest>=6.0.0
+# 特征提取（必需！用于 Kaldi Fbank + CMVN）
+kaldiio>=2.18.0
+kaldi-native-fbank>=1.7.0
+
+# 可选：PyTorch（用于对比验证）
+# torch>=1.10.0
+
+# 可选：可视化和音频处理
+# matplotlib>=3.5.0
+# scipy>=1.7.0
+# librosa>=0.9.0

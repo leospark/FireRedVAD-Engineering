@@ -21,7 +21,7 @@ import onnxruntime as ort
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from inference.streaming import StreamVAD, AudioFeatExtractor, StreamVadConfig
+from inference.streaming import StreamVAD, StreamVadConfig
 
 
 def process_audio_and_plot(wav_path, output_dir="."):
@@ -63,52 +63,39 @@ def process_audio_and_plot(wav_path, output_dir="."):
     print()
     
     # 初始化 VAD
-    print("📦 加载模型...")
-    config = StreamVadConfig()
+    print("📦 初始化 VAD...")
+    model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models', 'model_with_caches.onnx')
+    cmvn_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models', 'cmvn.ark')
+    config = StreamVadConfig(onnx_path=model_path, cmvn_path=cmvn_path)
     vad = StreamVAD(config)
-    print("✅ 模型加载成功\n")
+    print("✅ VAD 初始化完成\n")
     
-    # 流式推理
-    print("🔍 流式推理中...")
-    probs = []
-    times = []
-    
+    # 使用 VAD 批量处理
+    print("🔍 处理音频...")
     import time
     start_time = time.time()
     
-    for i in range(0, len(audio) - FRAME_LENGTH + 1, FRAME_SHIFT):
-        frame = audio[i:i+FRAME_LENGTH].astype(np.float32) / 32768.0
-        
-        # 特征提取
-        feat, _ = feat_extractor.extract(frame)
-        if hasattr(feat, 'numpy'):
-            feat_np = feat.numpy()
-        elif hasattr(feat, 'detach'):
-            feat_np = feat.detach().cpu().numpy()
-        else:
-            feat_np = feat
-        
-        # ONNX 推理
-        feat_input = feat_np.reshape(1, 1, -1).astype(np.float32)
-        input_feed = {'input': feat_input}
-        for j, cache in enumerate(caches):
-            input_feed[f'cache_{j}'] = cache
-        
-        outputs = session.run(None, input_feed)
-        prob = float(outputs[0][0, 0, 0])
-        caches = [outputs[j+1] for j in range(8)]
-        
-        probs.append(prob)
-        times.append(i * FRAME_SHIFT / SAMPLE_RATE)
-    
+    segments = vad.process_audio(audio, sample_rate=sample_rate)
     processing_time = time.time() - start_time
     rtf = processing_time / duration
     
-    print(f"✅ 推理完成")
+    # 重新逐帧处理用于绘图（使用 vad 的内部方法）
+    probs = []
+    times = []
+    
+    vad.reset()
+    for i in range(0, len(audio) - FRAME_LENGTH + 1, FRAME_SHIFT):
+        frame = audio[i:i+FRAME_LENGTH]
+        result = vad.process_frame(frame)
+        probs.append(result.raw_prob)
+        times.append(i * FRAME_SHIFT / SAMPLE_RATE)
+    
+    print(f"✅ 处理完成")
     print(f"   帧数：{len(probs)}")
     print(f"   概率范围：[{min(probs):.6f}, {max(probs):.6f}]")
     print(f"   平均概率：{np.mean(probs):.6f}")
     print(f"   RTF: {rtf:.4f}")
+    print(f"   语音段：{len(segments)} 个")
     print()
     
     # 保存概率数据
@@ -197,7 +184,7 @@ def process_audio_and_plot(wav_path, output_dir="."):
 def main():
     # 测试音频
     test_files = [
-        ('官方中文', ('test_audio.wav', os.path.join(os.path.dirname(__file__), 'test_audio.wav'))),
+        ('官方中文', os.path.join(os.path.dirname(__file__), 'test_audio.wav')),
     ]
     
     output_base = os.path.join(os.path.dirname(__file__), '..', 'output')

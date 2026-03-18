@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fireredvad-engineering"
+version = "1.1.0"
+description = "Production-Ready Streaming Voice Activity Detection with ONNX Runtime"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "FireRed Team", email = "your.email@example.com"}
+]
+keywords = [
+    "vad",
+    "voice activity detection",
+    "onnx",
+    "speech",
+    "audio",
+    "kaldi",
+    "firered",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+dependencies = [
+    "onnxruntime>=1.10.0",
+    "numpy>=1.20.0",
+    "soundfile>=0.10.0",
+    "kaldiio>=2.18.0",
+    "kaldi-native-fbank>=1.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "matplotlib>=3.5.0",
+    "scipy>=1.7.0",
+    "torch>=1.10.0",
+    "pytest>=7.0.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
+]
+plot = [
+    "matplotlib>=3.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/leospark/FireRedVAD-Engineering"
+Repository = "https://github.com/leospark/FireRedVAD-Engineering.git"
+Documentation = "https://github.com/leospark/FireRedVAD-Engineering#readme"
+Issues = "https://github.com/leospark/FireRedVAD-Engineering/issues"
+
+[project.scripts]
+fireredvad = "fireredvad.cli:main"
+
+[tool.setuptools]
+packages = ["fireredvad", "fireredvad.core", "inference"]
+
+[tool.setuptools.package-data]
+fireredvad = ["core/*.py"]
+"fireredvad.core" = ["*.py"]
+models = ["*.onnx", "*.onnx.data", "*.ark"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100

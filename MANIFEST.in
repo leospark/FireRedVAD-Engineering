@@ -1,0 +1,30 @@
+# Include README and LICENSE
+include README.md
+include LICENSE
+include requirements.txt
+
+# Include Python package files
+recursive-include fireredvad *.py
+recursive-include inference *.py
+
+# Include model files
+recursive-include models *.onnx
+recursive-include models *.onnx.data
+recursive-include models *.ark
+
+# Include example files
+recursive-include examples *.py
+recursive-include examples *.wav
+
+# Include verification outputs
+recursive-include output *.png
+recursive-include output *.npy
+recursive-include output *.md
+
+# Exclude unnecessary files
+exclude *.pyc
+exclude *.pyo
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude .git *
+recursive-exclude .github *
