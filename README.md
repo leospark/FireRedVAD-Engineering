@@ -373,17 +373,6 @@ MIT License - Free for personal and commercial use. See [LICENSE](LICENSE) for d
 
 ---
 
-## 🆘 Support
-
-For issues and feature requests, please use [GitHub Issues](https://github.com/leospark/FireRedVAD-Engineering/issues).
-
-**Documentation:**
-- [TEST_REPORT.md](TEST_REPORT.md) - Detailed test results
-- [WHEEL_PACKAGING_REPORT.md](WHEEL_PACKAGING_REPORT.md) - Wheel packaging guide
-- [PYPI_PUBLISH_GUIDE.md](PYPI_PUBLISH_GUIDE.md) - PyPI publishing guide
-
----
-
 **Last Updated:** 2026-03-18  
 **Version:** 1.1.0  
 **Status:** ✅ Production Ready
